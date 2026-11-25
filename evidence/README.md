@@ -8,13 +8,12 @@
 |---|---|
 | `devinfo-layout.md` | devinfo 偏移表与写入前后逐字节对比（脱敏） |
 | `abl-strings.txt` | 关键字符串与 RVA（从自己的 ABL 提取后摘录） |
-| `kernel-config-snippet.txt` | 与 namespace/容器结论相关的 `/proc/config.gz` 片段 |
 | `props-baseline.txt` | 脱敏后的 `getprop` 关键属性（去除序列号、IMEI、MAC） |
 
 不要提交：
 
 - `devinfo.img`、`abl_a.img`、任何 `*.img` 分区镜像；
-- 完整 `payload.bin` 或 ROM 包；
+- ROM 包或 `payload.bin`；
 - 带签名参数的下载链接；
 - 含设备序列号、IMEI、Wi-Fi MAC、账号信息的日志。
 

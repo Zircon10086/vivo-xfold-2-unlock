@@ -1,16 +1,21 @@
 ---
 name: Bug report
-about: 脚本/文档有问题（请先脱敏）
+about: 解锁脚本/文档有问题（请先脱敏）
 labels: bug
 ---
 
 ## 设备与环境
 
 - 机型（`ro.product.device`）：
-- 系统构建号（`ro.build.display.id`）：
-- 内核版本：
-- 槽位 / 解锁状态（`ro.boot.flash.locked`、`ro.boot.verifiedbootstate`）：
+- 构建号（`ro.build.display.id`）：
+- 槽位 / 解锁属性（`ro.boot.flash.locked`、`ro.boot.verifiedbootstate`）：
 - PC 系统与 adb/fastboot 版本：
+
+## `check_device.sh` 输出（脱敏）
+
+```
+（粘贴）
+```
 
 ## 复现步骤
 
@@ -28,6 +33,6 @@ labels: bug
 （粘贴）
 ```
 
-## 是否已读 docs/06-troubleshooting.md
+## 是否已读 docs/03-troubleshooting.md
 
 - [ ] 已读，且不是其中已知问题

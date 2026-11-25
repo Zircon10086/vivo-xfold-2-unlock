@@ -1,80 +1,87 @@
 # vivo-xfold-2-unlock
 
-Bootloader unlock, manual OTA flashing, persistent root and debloat for the
-**vivo X Fold 2 (PD2266 / V2266A, SM8550 "kalama")**.
+Bootloader unlock for the **vivo X Fold 2 (PD2266 / V2266A, SM8550 "kalama")**.
 
-> 单机型优先项目：所有步骤在 PD2266 的 OriginOS 4 / 5 / 6 上实测通过。
-> 其他 vivo 机型仅作参考，devinfo 偏移与 ABL 行为需自行核对。
+> 本仓库只覆盖**解锁**这一步：从「已锁定、无官方解锁入口」到
+> 「devinfo 写入 → 重启进 corrupt 屏 → recovery 手动清除所有数据 → BL 解锁」。
+> 解锁之后的刷机、Root、去臃肿等步骤不在本项目范围内。
 
 ## ⚠️ 风险声明（先读这一段）
 
-- 解锁会**清空全部用户数据**，并让设备进入 orange 状态；Play Integrity 等会失败。
-- 解锁 Bootloader **失去官方保修**，操作不当可能变砖；本项目按现状提供，不承担任何后果。
-- 文中涉及分区写入、`fastboot -w`、devinfo 修改等不可逆操作，请先读完对应文档再执行。
-- 仅在**你自己拥有**的设备上使用；不同地区对运营商组件的处置规定不同，由使用者自行判断。
+- 整个流程会**清空全部用户数据**（解锁的最后一步就是恢复出厂设置）。
+- 解锁 Bootloader **失去官方保修**；操作不当可能变砖，本项目按现状提供，不承担任何后果。
+- 涉及分区写入（`devinfo`）与不可逆的清数据操作，请先读完文档再执行。
+- 仅在**你自己拥有**的设备上使用。
 
-## 状态矩阵（实测）
+## 支持范围（实测）
 
-| 项目 | OriginOS 4 (`14.1.11.10.W10`) | OriginOS 5 (`15.2.14.1.W10`) | OriginOS 6 (`16.3.18.1.W10`) |
-|---|---|---|---|
-| devinfo 解锁 | ✅ | ✅（解锁后升级） | ✅（解锁状态保留） |
-| payload 手动刷写 | ✅ | ✅ | ✅ |
-| KernelSU / ReSukiSU | ✅（LKM） | ✅ | ✅ |
-| 去臃肿模块 | — | — | ✅（31 项） |
+| 系统 | 构建号 | 解锁结果 |
+|---|---|---|
+| OriginOS 4 | `PD2266_A_14.1.11.10.W10.V000L1` | ✅ |
+| OriginOS 5 | `PD2266_A_15.2.14.1.W10.V000L1` | ✅ |
+| OriginOS 6 | `PD2266_A_16.3.18.1.W10.V000L1` | ✅ |
+
+其他 vivo 机型仅作原理参考：devinfo 偏移与 ABL 行为必须自行核对，**不要照抄**。
+
+## 前置条件
+
+1. 能拿到**临时 root**（本项目在 OS4/OS5/OS6 上使用 GhostLock，见 `patches/`）。
+2. Recovery 里有**独立的「清除所有数据」**（不是只有「修复系统」）。
+   本机菜单：安装系统软件 / 清除数据（含清除所有数据）/ 校验系统 / 安全模式 / 关机重启。
+3. 电量 ≥ 60%，已备份 `devinfo` 原始镜像（`scripts/check_device.sh` 会提示）。
 
 ## 快速开始
 
 ```bash
-# 0) 只读体检：机型、版本、槽位、解锁状态、电量
+# 0) 只读体检：机型、构建号、槽位、解锁属性、电量、devinfo 当前字节
 bash scripts/check_device.sh
 
-# 1) 解锁（需要临时 root；先读 docs/02-unlock.md）
-bash scripts/unlock_devinfo.sh --dry-run     # 看它将写什么
-bash scripts/unlock_devinfo.sh --yes         # 真正写入
+# 1) 预览将要写入的内容（默认 dry-run）
+bash scripts/unlock_devinfo.sh
 
-# 2) 手动升级（先解包 payload，读 docs/03-manual-ota.md）
-bash scripts/flash_ota_stage1.sh --images /path/to/images --slot b --dry-run
-bash scripts/flash_ota_stage2.sh --images /path/to/images --slot b --wipe --dry-run
+# 2) 真正写入 devinfo 的 0x0d / 0x0e
+bash scripts/unlock_devinfo.sh --yes
 
-# 3) Root（读 docs/04-root.md）
-bash scripts/ksu_install.sh --init-boot /path/to/init_boot.img --slot b
-
-# 4) 去臃肿（读 docs/05-debloat.md）
-bash scripts/debloat_module.sh --packages packages.example.tsv --dry-run
+# 3) 重启后进入 corrupt 屏 → recovery「清除数据 → 清除所有数据」
+adb reboot
 ```
 
 ## 原理速览
 
-1. **解锁**：vivo ABL 读取 `devinfo` 分区时只校验 magic `ANDROID-BOOT!`；
-   把 `0x0d`（unlocked）与 `0x0e`（critical unlocked）置 1，重启后进入
-   "device is corrupt"，在 recovery 执行「清除所有数据」即完成解锁。
-   详见 [docs/02-unlock.md](docs/02-unlock.md)。
-2. **升级**：官方全量包是 `payload.bin` 的 A/B 包。解包后，固件与 boot 链在 bootloader
-   阶段刷入，逻辑分区在 fastbootd 阶段刷入（自动扩容 super），最后清 userdata。
-   详见 [docs/03-manual-ota.md](docs/03-manual-ota.md)。
-3. **Root**：用 KernelSU（或 ReSukiSU）的 `ksud boot-patch` 给原厂 `init_boot.img`
-   打补丁并刷入，重启后 `su` 常驻。详见 [docs/04-root.md](docs/04-root.md)。
-4. **去臃肿**：运营商 DM（`com.vivo.devicereg`、`com.mobiletools.systemhelper`）与
-   遥测/商业预装用 `pm disable-user` 处理，并固化成 KSU 模块开机重放。
-   详见 [docs/05-debloat.md](docs/05-debloat.md)。
+vivo 的 ABL 读取 `devinfo` 时只校验前 13 字节 magic `ANDROID-BOOT!`；
+magic 有效时直接把 `0x0d` 当作 unlocked、`0x0e` 当作 critical unlocked。
+把这两个字节置 1 后重启，ABL 认为已解锁，但 userdata 与新的验证状态不匹配，
+于是进入 "device is corrupt"；在 recovery 执行一次「清除所有数据」即可正常开机，
+并以 orange 状态保持解锁。
+
+证据与偏移见 [docs/02-unlock.md](docs/02-unlock.md) 与
+[docs/04-research-notes.md](docs/04-research-notes.md)。
 
 ## 仓库结构
 
 ```
-docs/      01 前置检查 · 02 解锁 · 03 手动 OTA · 04 Root · 05 去臃肿 · 06 排错 · 99 研究笔记
-scripts/   check_device / unlock_devinfo / flash_ota_stage1|stage2 / ksu_install / debloat_module
-patches/   提交给上游 Ghostlock 的修复补丁（tagB 门控、verify 超时）
-evidence/  偏移、哈希、反汇编要点（不含任何分区 dump）
-tools/     外部工具清单（不打包二进制）
+docs/01-prereq.md          前置检查与备份
+docs/02-unlock.md          解锁步骤、验证与回滚
+docs/03-troubleshooting.md 常见故障
+docs/04-research-notes.md  ABL 反汇编要点与 devinfo 布局
+scripts/check_device.sh    只读体检
+scripts/unlock_devinfo.sh  写入 devinfo（默认 dry-run）
+patches/tagb-gate.patch    临时 root 相关：vivo 5.15 跳过 tagB
+patches/verify-timeout.patch 临时 root 相关：verify 读超时
 ```
+
+## 关于临时 root
+
+本项目的解锁步骤需要一个能写 `devinfo` 的 root shell。我们使用的是 GhostLock
+（CVE-2026-43499）；它在本机 vivo 5.15 内核上存在一个「tagB 清零把任务打成僵尸」的问题，
+`patches/` 里是修复补丁与说明。临时 root 的获取方式不是本项目的重点，
+你也可以用任何能稳定拿到 root 的方式替代。
 
 ## 致谢
 
 - [DemonKingSwarn/vivo-iqoo-9t-bootloader-unlock](https://github.com/DemonKingSwarn/vivo-iqoo-9t-bootloader-unlock)：devinfo 路线的公开参考。
-- GhostLock / Ghostlock-vr：内核提权与 tagB 根因定位。
-- [Eynnzerr/TelemetryCleaner](https://github.com/Eynnzerr/TelemetryCleaner)、[Greatday2233/regblock](https://github.com/Greatday2233/regblock)：运营商组件行为分析的公开证据。
-- KernelSU / ReSukiSU / Vector、payload-dumper-go 等工具的作者。
+- GhostLock / Ghostlock-vr：临时提权与 tagB 根因定位。
 
 ## 许可证
 
-[GNU Affero General Public License v3.0](LICENSE)。派生作品（包括通过网络提供服务的修改版）必须以同一许可证开源。
+[GNU Affero General Public License v3.0](LICENSE)。
