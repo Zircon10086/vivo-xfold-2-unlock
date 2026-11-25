@@ -1,0 +1,25 @@
+# 忽略本地产物与敏感文件
+*.img
+*.bin
+*.zip
+*.apk
+!scripts/*.zip
+payload.bin
+payload_properties.txt
+devinfo*.img
+abl*.img
+rom/
+out/
+logs/
+devlog/
+*.log
+props*.txt
+*.patch.bak
+.DS_Store
+Thumbs.db
+
+# 本地环境
+.env
+.venv/
+__pycache__/
+node_modules/
