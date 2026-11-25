@@ -33,6 +33,6 @@ labels: bug
 （粘贴）
 ```
 
-## 是否已读 docs/03-troubleshooting.md
+## 是否已读 docs/04-troubleshooting.md
 
 - [ ] 已读，且不是其中已知问题

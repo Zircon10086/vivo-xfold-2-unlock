@@ -13,7 +13,7 @@
 - `check_device.sh` 的 devinfo 段显示「无法读取」即没有 root。
 - 解锁只需要一次能写分区的 root shell；临时提权方案见 README 的「关于临时 root」。
 - 若使用 GhostLock 卡在 W2（`W2b` 之后没有下文、子进程 `State: R`），
-  是 vivo 5.15 的 tagB 地雷，补丁见 `patches/` 与 [04-research-notes.md](04-research-notes.md)。
+  是 vivo 5.15 的 tagB 地雷，补丁见 `patches/` 与 [05-research-notes.md](05-research-notes.md)。
 
 ## 3. `unlock_devinfo.sh` 报 magic 不符
 
